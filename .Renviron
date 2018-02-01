@@ -1,0 +1,3 @@
+GCE_AUTH_FILE="C:/Users/andre/Documents/R/auth.json"
+GCE_DEFAULT_PROJECT_ID="r-globe-viz"
+GCE_DEFAULT_ZONE="europe-west1-c"
