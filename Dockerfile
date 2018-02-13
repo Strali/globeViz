@@ -16,4 +16,4 @@ RUN Rscript -e "install.packages('sp')"
 
 ADD . /app
 
-CMD ["Rscript", "visualise_globe.R"] 
+CMD ["Rscript", "visualise_globe.R"]

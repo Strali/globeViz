@@ -1,4 +1,3 @@
-##
 ## mclapply.hack.R
 ##
 ## Nathan VanHoudnos
@@ -14,7 +13,7 @@ require(parallel)
 
 ## Define the hack
 mclapply.hack <- function(...) {
-  ## Create a cluster
+  ## Create a cluster. As is, the number of cores are set manually, could be done automatically.
   size.of.list <- length(list(...)[[1]])
   nb_cores = 4
   cl <- makeCluster(nb_cores)

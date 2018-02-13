@@ -1,15 +1,16 @@
-
-library(dplyr)
-library(purrr)
-library(maps)
-library(mapproj)
-library(geosphere)
-library(sp)
-library(gridExtra)
-library(raster)
 library(data.table)
+library(dplyr)
+library(geosphere)
 library(ggplot2)
+library(gridExtra)
+library(purrr)
+library(mapproj)
+library(maps)
 library(parallel)
+library(raster)
+library(sp)
+
+source('mclapply.hack.R')
 
 get_paths <- function(x, idx, ...) {
   gcInt <- function(x, x1, x2) {
@@ -86,16 +87,20 @@ save_maps <- function(x, lon_seq, lat_seq, col = NULL, type = "network", z.range
   }
   g <- g + theme_blank + coord_map("ortho", orientation = c(lat_seq[i], lon_seq[i],
                                                             23.4))
-  dir.create(outDir <- file.path("frames_test", type), recursive = TRUE, showWarnings = FALSE)
-  png(sprintf(paste0(outDir, "/", type, "_%03d.png"), i), width = 1920,
-      height = 1080, res = 300, bg = "transparent")
+  dir.create(outDir <- file.path("frames", type), recursive = TRUE, showWarnings = FALSE)
+  png(sprintf(paste0(outDir, "/", type, "_%03d.png"), i), width = 2*1920,
+      height = 2*1080, res = 300, bg = "transparent")
   print(g)
   dev.off()
   NULL
 }
 
-# d <- locations[,c(3,2)]
-# names(d) <- c("lat", "long")
+eb <- element_blank()
+theme_blank <- theme(axis.line = eb, axis.text.x = eb, axis.text.y = eb, axis.ticks = eb, 
+                     axis.title.x = eb, axis.title.y = eb, legend.position = "none", panel.background = eb, 
+                     panel.border = eb, panel.grid.major = eb, panel.grid.minor = eb, plot.background = element_rect(colour = "transparent",                                                                                                                 
+                                                                                                                     fill = "transparent"))
+world <- map_data("world")
 # Locations = (Gothenburg, Oslo, Stockholm, Tyres�, Dubrovnik, Copenhagen, Londonm, Boom, Prague,
 #              Berlin, Budapest, Bratislava, Split, Salzburg, Serre Chevalier, Helsinki, Ume�,
 #              �re, S�len, Lund, Visby, Karlstad, Athens, Side, Dubai, Singapore, Darwin, Cairns,
@@ -116,35 +121,28 @@ long = c(11.97, 10.75, 18.07, 18.30, 18.09, 12.57, 0.13, 4.37, 14.44,
          2.17, 1.52, 13.13, 12.26, 15.98, 15.42)
 d = data.frame(lats, long)
 
-p <- SpatialPoints(cbind(d$long, d$lat), proj4string = CRS("+proj=longlat +datum=WGS84"))
+set.seed(1)
+p <- SpatialPoints(cbind(network$lon, network$lat), proj4string = CRS("+proj=longlat +datum=WGS84"))
 idx1 <- 1
 paths <- get_paths(p, idx1, addStartEnd = TRUE)
 
-eb <- element_blank()
-theme_blank <- theme(axis.line = eb, axis.text.x = eb, axis.text.y = eb, axis.ticks = eb, 
-                     axis.title.x = eb, axis.title.y = eb, legend.position = "none", panel.background = eb, 
-                     panel.border = eb, panel.grid.major = eb, panel.grid.minor = eb, plot.background = element_rect(colour = "transparent", 
-                                                                                                                     fill = "transparent"))
-world <- map_data("world")
+n.frames <- 900
+n.period <- 120
 
-n.frames <- 300
-paths <- paths %>% split(.$group) %>% purrr::map(~df_segs(.x, 5, n.frames, replicates = 1, 
-                                                          direction = "random")) %>% bind_rows
+paths <- paths %>% split(.$group) %>% purrr::map(~df_segs(.x, 3, n.frames, replicates = 1, 
+                                                          direction = "reverse")) %>% bind_rows
+
+lon_seq <- rep(seq(0, 360, length.out = n.period + 1)[-(n.period + 1)], length = n.frames)
+lat_seq <- rep(41, length(lon_seq))
+paths <- paths %>% split(.$frameID)
 
 d.bath <- read.csv("marmap_coord_-180;-90;180;90_res_10.csv") %>% data.table %>% 
   setnames(c("long", "lat", "z"))
 r <- raster(extent(-180, 180, -90, 90), res = 1/6)
 projection(r) <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
 r <- setValues(r, d.bath$z)
-
-n.period <- 120
-lon_seq <- rep(seq(0, 360, length.out = n.period + 1)[-(n.period + 1)], length = n.frames)
-lat_seq <- rep(41, length(lon_seq))
-paths <- paths %>% split(.$frameID)
 d.bath.agg <- r %>% aggregate(2) %>% rasterToPoints %>% data.table %>% setnames(c("long",
                                                                                   "lat", "z"))
-
-source('mclapply.hack.R')
 d.tiles <- mclapply(1:n.period, function(i, dat, lon, lat)
   {
   left_join(dat, project_to_hemisphere(dat$lat, dat$long, lat[i], lon[i])) %>% filter(inview) %>% 
@@ -156,6 +154,5 @@ z.range <- purrr::map(d.tiles, ~range(.x$z, na.rm = TRUE)) %>% unlist %>% range
 d.world <- purrr::map(1:n.period, ~mutate(world, frameID = .x))
 
 mclapply(paths, save_maps, lon_seq, lat_seq, type = "network")
-message(paste("Ran script in docker container!"))
-# mclapply(d.world, save_maps, lon_seq, lat_seq, type = "maplines")
-# mclapply(d.tiles, save_maps, lon_seq, lat_seq, type = "maptiles", z.range = z.range)
+mclapply(d.world, save_maps, lon_seq, lat_seq, type = "maplines")
+mclapply(d.tiles, save_maps, lon_seq, lat_seq, type = "maptiles", z.range = z.range)
