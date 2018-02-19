@@ -1,5 +1,6 @@
 # GlobeViz
 ![Alt text](loop.gif "You spin me right round!")
+
 Attempting to reconstruct the visualisations made by Matthew Leonawicz (http://leonawicz.github.io/gc_animation_example/app_traffic_example.html) using my own travels data as network.
 
 ## Notes
