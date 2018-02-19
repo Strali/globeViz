@@ -136,7 +136,7 @@ lon_seq <- rep(seq(0, 360, length.out = n.period + 1)[-(n.period + 1)], length =
 lat_seq <- rep(41, length(lon_seq))
 paths <- paths %>% split(.$frameID)
 
-d.bath <- read.csv("marmap_coord_-180;-90;180;90_res_10.csv") %>% data.table %>% 
+d.bath <- read.csv("data/marmap_coord_-180;-90;180;90_res_10.csv") %>% data.table %>% 
   setnames(c("long", "lat", "z"))
 r <- raster(extent(-180, 180, -90, 90), res = 1/6)
 projection(r) <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
